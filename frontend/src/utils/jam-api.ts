@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { SimplifyDeep } from 'type-fest';
 
 export interface ICompany {
     id: number;
@@ -49,7 +50,9 @@ export async function getCollectionsById(id: string, offset?: number, limit?: nu
     }
 }
 
-export async function getCollectionsMetadata(): Promise<ICollection[]> {
+type GetCollectionsMetadataOutput = SimplifyDeep<Omit<ICollection, "companies">[]>
+
+export async function getCollectionsMetadata(): Promise<GetCollectionsMetadataOutput> {
     try {
         const response = await axios.get(`${BASE_URL}/collections`);
         return response.data;
