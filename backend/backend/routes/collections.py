@@ -133,8 +133,13 @@ def import_companies_to_collection(
 ):
     active_jobs = (
         db.query(database.Job.id)
-        .filter(database.Job.status == "activee")
-        .filter(database.Job.source_collection_id == body.source_collection_id)
+        .filter(database.Job.status == "active")
+        .filter(
+            or_(
+                database.Job.source_collection_id == body.source_collection_id,
+                database.Job.target_collection_id == collection_id,
+            )
+        )
         .limit(1)
         .all()
     )
