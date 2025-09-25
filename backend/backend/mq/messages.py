@@ -52,13 +52,10 @@ class ImportCompaniesToCollectionMessage(BaseMessage):
             )
 
         batch = query.offset(cursor).limit(batch_size + 1).all()
-
-        logger.info(f"batch size: {len(batch)}")
         has_next = len(batch) > batch_size
         if has_next:
             batch.pop()
         cursor += len(batch)
-        logger.info(f"cursor: {cursor} has_next: {has_next}")
 
         associations = [
             {
@@ -76,9 +73,7 @@ class ImportCompaniesToCollectionMessage(BaseMessage):
             .on_conflict_do_nothing(index_elements=["company_id", "collection_id"])
         )
 
-        logger.info(f"stmt: {stmt}")
-        result = db.execute(stmt)
-        logger.info(f"result: {result}")
+        db.execute(stmt)
         db.commit()
 
         state = {
