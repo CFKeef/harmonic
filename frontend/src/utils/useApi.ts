@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 
-
-
 const useApi = <T>(apiFunction: () => Promise<T>) => {
     const [data, setData] = useState<T>();
     const [loading, setLoading] = useState<boolean>(false);
@@ -9,6 +7,7 @@ const useApi = <T>(apiFunction: () => Promise<T>) => {
 
     useEffect(() => {
         setLoading(true);
+        setError(null);
         apiFunction().then((response) => {
             setData(response);
         }).catch((error) => {

@@ -3,7 +3,6 @@ import os
 import uuid
 from datetime import datetime
 from typing import Union
-
 from sqlalchemy import (
     Column,
     DateTime,
@@ -14,9 +13,10 @@ from sqlalchemy import (
     create_engine,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import (UUID, JSONB)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.mutable import MutableDict
 
 SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL')
 
@@ -70,6 +70,22 @@ class CompanyCollectionAssociation(Base):
         DateTime, default=datetime.utcnow, server_default=func.now(), nullable=False
     )
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id"))
-    collection_id = Column(UUID(as_uuid=True), ForeignKey("company_collections.id"))
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True)
+    collection_id = Column(UUID(as_uuid=True), ForeignKey("company_collections.id"), index=True)
 
+class Job(Base):
+    __tablename__ = "jobs"
+
+    created_at: Union[datetime, Column[datetime]] = Column(
+        DateTime, default=datetime.utcnow, server_default=func.now(), nullable=False
+    )
+    id: Column[uuid.UUID] = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)    
+    status = Column(String, index=True)
+    message = Column(String)
+    source_collection_id = Column(UUID(as_uuid=True), ForeignKey("company_collections.id"), index=True)
+    target_collection_id = Column(UUID(as_uuid=True), ForeignKey("company_collections.id"))
+    state = Column(
+        MutableDict.as_mutable(JSONB),
+        default=dict,           # python-side default
+        nullable=False,
+    )

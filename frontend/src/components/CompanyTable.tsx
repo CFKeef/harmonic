@@ -1,30 +1,120 @@
-import { DataGrid } from "@mui/x-data-grid";
-import { useEffect, useState } from "react";
-import { getCollectionsById, ICompany } from "../utils/jam-api";
+import { DataGrid, GridRowSelectionModel } from "@mui/x-data-grid";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { getCollectionsById } from "../utils/jam-api";
+import { TableControls } from "./TableControls";
+import { useCollectionId } from "../utils/useCollectionId";
+import { JobProgression } from "./JobProgression";
+import { useQuery } from "@tanstack/react-query";
 
-const CompanyTable = (props: { selectedCollectionId: string }) => {
-  const [response, setResponse] = useState<ICompany[]>([]);
-  const [total, setTotal] = useState<number>();
+type CompanyTableContext = {
+  offset: number;
+  setOffset: (offset: number) => void;
+  pageSize: number;
+  setPageSize: (pageSize: number) => void;
+  rowSelectionModel: GridRowSelectionModel;
+  setRowSelectionModel: (rowSelectionModel: GridRowSelectionModel) => void;
+  isDirty: () => boolean;
+};
+
+const CompanyTableContext = createContext<CompanyTableContext | undefined>(
+  undefined,
+);
+
+export const useCompanyTable = () => {
+  const context = useContext(CompanyTableContext);
+
+  if (!context) {
+    throw new Error(
+      "useCompanyTable must be used within a CompanyTableProvider",
+    );
+  }
+
+  return context;
+};
+
+const useCollection = (props: {
+  collectionId: string;
+  offset: number;
+  pageSize: number;
+}) => {
+  return useQuery({
+    queryKey: ["collection", props.collectionId, props.offset, props.pageSize],
+    queryFn: () =>
+      getCollectionsById(props.collectionId, props.offset, props.pageSize),
+    refetchInterval: 5_000,
+  });
+};
+
+const CompanyTable = () => {
+  const selectedCollectionId = useCollectionId();
   const [offset, setOffset] = useState<number>(0);
   const [pageSize, setPageSize] = useState(25);
-
-  useEffect(() => {
-    getCollectionsById(props.selectedCollectionId, offset, pageSize).then(
-      (newResponse) => {
-        setResponse(newResponse.companies);
-        setTotal(newResponse.total);
-      }
-    );
-  }, [props.selectedCollectionId, offset, pageSize]);
-
+  const [rowSelectionModel, setRowSelectionModel] =
+    useState<GridRowSelectionModel>([]);
+  // On collection id change, reset table state
   useEffect(() => {
     setOffset(0);
-  }, [props.selectedCollectionId]);
+    setRowSelectionModel([]);
+  }, [selectedCollectionId.value]);
+
+  const collection = useCollection({
+    collectionId: selectedCollectionId.value,
+    offset: offset,
+    pageSize: pageSize,
+  });
+
+  return (
+    <CompanyTableContext.Provider
+      value={{
+        offset,
+        setOffset,
+        pageSize,
+        setPageSize,
+        rowSelectionModel,
+        setRowSelectionModel,
+        isDirty: () => rowSelectionModel.length > 0,
+      }}
+    >
+      <div className="flex flex-col space-y-2">
+        <div className="flex justify-between items-center">
+          <JobProgression job={collection.data?.job} />
+          <TableControls />
+        </div>
+        <DataTable collectionId={selectedCollectionId.value} />
+      </div>
+    </CompanyTableContext.Provider>
+  );
+};
+
+const DataTable = (props: { collectionId: string }) => {
+  const table = useCompanyTable();
+
+  const collection = useCollection({
+    collectionId: props.collectionId,
+    offset: table.offset,
+    pageSize: table.pageSize,
+  });
+
+  const rowCountRef = useRef(collection.data?.total ?? 0);
+  const rowCount = useMemo(() => {
+    if (collection.data?.total !== undefined) {
+      rowCountRef.current = collection.data.total;
+    }
+    return rowCountRef.current;
+  }, [collection.dataUpdatedAt]);
 
   return (
     <div style={{ height: 600, width: "100%" }}>
       <DataGrid
-        rows={response}
+        rows={collection.data?.companies ?? []}
+        loading={collection.isLoading}
         rowHeight={30}
         columns={[
           { field: "liked", headerName: "Liked", width: 90 },
@@ -36,13 +126,18 @@ const CompanyTable = (props: { selectedCollectionId: string }) => {
             paginationModel: { page: 0, pageSize: 25 },
           },
         }}
-        rowCount={total}
+        rowCount={rowCount}
         pagination
         checkboxSelection
+        keepNonExistentRowsSelected
+        onRowSelectionModelChange={(rowSelectionModel) => {
+          table.setRowSelectionModel(rowSelectionModel);
+        }}
+        rowSelectionModel={table.rowSelectionModel}
         paginationMode="server"
-        onPaginationModelChange={(newMeta) => {
-          setPageSize(newMeta.pageSize);
-          setOffset(newMeta.page * newMeta.pageSize);
+        onPaginationModelChange={(newMeta, details) => {
+          table.setPageSize(newMeta.pageSize);
+          table.setOffset(newMeta.page * newMeta.pageSize);
         }}
       />
     </div>

@@ -9,6 +9,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from backend.db import database
 from backend.routes import collections, companies
+from backend.mq.queue import init_work_queue, shutdown_work_queue
 
 
 @asynccontextmanager
@@ -22,8 +23,11 @@ async def lifespan(app: FastAPI):
         db.add(database.Settings(setting_name="seeded"))
         db.commit()
         db.close()
+
+    init_work_queue(database.SessionLocal)
     yield
     # Clean up...
+    shutdown_work_queue()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -34,9 +38,11 @@ def seed_database(db: Session):
     db.execute(text("TRUNCATE TABLE companies CASCADE;"))
     db.execute(text("TRUNCATE TABLE company_collection_associations CASCADE;"))
     db.execute(
-        text("""
+        text(
+            """
     DROP TRIGGER IF EXISTS throttle_updates_trigger ON company_collection_associations;
-    """)
+    """
+        )
     )
     db.commit()
 
@@ -89,7 +95,8 @@ def seed_database(db: Session):
     db.commit()
 
     db.execute(
-        text("""
+        text(
+            """
 CREATE OR REPLACE FUNCTION throttle_updates()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -97,16 +104,19 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-    """)
+    """
+        )
     )
 
     db.execute(
-        text("""
+        text(
+            """
 CREATE TRIGGER throttle_updates_trigger
 BEFORE INSERT ON company_collection_associations
 FOR EACH ROW
 EXECUTE FUNCTION throttle_updates();
-    """)
+    """
+        )
     )
     db.commit()
 
