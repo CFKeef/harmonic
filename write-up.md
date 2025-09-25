@@ -2,7 +2,8 @@ https://www.youtube.com/watch?v=03za7ECX-Qo
 
 # High Level Design
 
-![[Pasted image 20250925020515.png]]
+<img width="2725" height="1289" alt="image" src="https://github.com/user-attachments/assets/27adec95-9e29-4e03-a075-f123c59d9bf3" />
+
 
 # Change Log
 
@@ -20,7 +21,8 @@ https://www.youtube.com/watch?v=03za7ECX-Qo
 8. Adjusted the select all behavior to keep tracking between table pages and provide a reset button to clear this state
    1. This will be between timestamps 0:03 to 0:09 in the clip
 9. Added a Actions button within the collections/\[id] pages to let users copy the entire list or a specific subset of the list to some target collection
-   1. ![[Pasted image 20250925022130.png]]
+   1. <img width="753" height="446" alt="Pasted image 20250925022130" src="https://github.com/user-attachments/assets/758623d7-7e08-462d-8a89-8704b0d56eac" />
+
 
 # Assumptions:
 
@@ -53,24 +55,29 @@ https://www.youtube.com/watch?v=03za7ECX-Qo
    3. Decision: Polling for simplicity but tracking a roadmap item to move to SSE
 
 # Implementation
-
-1. In my case I went for a job-based system for exports where when a user drives through the workflow to copy some subset of a collection it will be initialized in the db with some initial state. 1. Here's the table that encompasses this: 1. ![[Pasted image 20250925024318.png]] 1. Note: I did originally plan to support expanding the jobs to keep the steps as part of the history through the use of the "parentJobId" but this seemed a bit too complicated for the take-home 2. Each job involves a source and target so we map those appropriately alongside using our "state" column to track the selected rows if any. 1. Another option here would be to expand the relation but this table just suits itself as providing some history alongside its workload state plus adding these relations will hurt our insert times since we'll have to juggle more constraints and a more complicated insert process 2. Then the endpoint handle will dispatch the task to a broker (in this case a simple in-memory work queue) to be handled. 1. This work queue has support for more message types using a general BaseMessage and narrowing to specific message types within the worker run function.  
-   2. Each message handler should return a next_step in the event we need to orchestrate several steps 1. In my case we just use it to chunk and re-publish the remaining work to be done alongside some state 3. After dispatch the endpoint handler should return a simple message and a id to the job/collection so we can optimistically update
+1. In my case I went for a job-based system for exports where when a user drives through the workflow to copy some subset of a collection it will be initialized in the db with some initial state. 
+Here's the table that encompasses this: 
+   1. <img width="405" height="573" alt="Pasted image 20250925024318" src="https://github.com/user-attachments/assets/d85790a3-0f57-4234-989a-6344e895be3f" />
+   2. Note: I did originally plan to support expanding the jobs to keep the steps as part of the history through the use of the "parentJobId" but this seemed a bit too complicated for the take-home 
+2. Each job involves a source and target so we map those appropriately alongside using our "state" column to track the selected rows if any.
+   1. Another option here would be to expand the relation but this table just suits itself as providing some history alongside its workload state plus adding these relations will hurt our insert times since we'll have to juggle more constraints and a more complicated insert process
+3. Then the endpoint handle will dispatch the task to a broker (in this case a simple in-memory work queue) to be handled.
+   1. This work queue has support for more message types using a general BaseMessage and narrowing to specific message types within the worker run function.  
+   2. Each message handler should return a next_step in the event we need to orchestrate several steps 1. In my case we just use it to chunk and re-publish the remaining work to be done alongside some state
+4. After dispatch the endpoint handler should return a simple message and a id to the job/collection so we can optimistically update
 
 # Roadmap
-
 _pretend these are tickets :)_
 
 ## Product
-
 1. Build out an export drawer that provides a centralized view for user to view their active jobs
-   1. ![[Pasted image 20250925021445.png]]
+   1. <img width="511" height="1461" alt="Pasted image 20250925021445" src="https://github.com/user-attachments/assets/d642f29c-e98a-4070-ada4-44c9649d6211" />
    2. Consider something like Posthog's export feature since its clear and provides a nice ui around status updates
-      1. ![[posthog.webm]]
+      1. [posthog.webm](https://github.com/user-attachments/assets/ca4531c2-ace2-46c3-9c5c-6e555228defd)
 2. Adding text search to our data table
    1. Something like this would be easy and a nice improvement: https://ui.shadcn.com/docs/components/data-table
 3. Adding filter controls
-   1. ![[Pasted image 20250925030318.png]]
+   1. <img width="405" height="573" alt="Pasted image 20250925024318" src="https://github.com/user-attachments/assets/0e4077c8-9295-4fc1-adbd-01c77e70d877" />
    2. https://ui.shadcn.com/examples/tasks
 4. Support CRUD workflows around our collection
 5. Support CRUD workflows around our collection items
@@ -79,7 +86,6 @@ _pretend these are tickets :)_
       1. ex: 1/50 items remaining, 33% done
 
 ## Infrastructure
-
 1. Set up testing
 2. Set up a CI/CD pipeline
 3. Set up observability
