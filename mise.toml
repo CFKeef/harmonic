@@ -1,2 +1,4 @@
 [tools]
 node = "20"
+poetry = "2.2.1"
+python = "3.9.16"
